@@ -1,46 +1,56 @@
 package kubeconfig
 
 import (
-    "fmt"
-    "os"
-    "path/filepath"
-    "k8s.io/client-go/tools/clientcmd"
-    "k8s.io/client-go/tools/clientcmd/api"
+	"fmt"
+	"os"
+	"path/filepath"
+
+	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/tools/clientcmd/api"
 )
 
-func CreateKubeconfig(username, clusterName, server string, caData, clientCertData, clientKeyData []byte) error {
-    config := api.NewConfig()
-    config.Clusters[clusterName] = &api.Cluster{
-        Server:                   server,
-        CertificateAuthorityData: caData,
-    }
-    config.AuthInfos[username] = &api.AuthInfo{
-        ClientCertificateData: clientCertData,
-        ClientKeyData:         clientKeyData,
-    }
-    config.Contexts[username] = &api.Context{
-        Cluster:  clusterName,
-        AuthInfo: username,
-    }
-    config.CurrentContext = username
+func CreateKubeconfig(username string, clientCertData, clientKeyData []byte) error {
+	// Carregar o kubeconfig existente
+	kubeconfigPath := filepath.Join(os.Getenv("HOME"), ".kube", "config")
+	config, err := clientcmd.LoadFromFile(kubeconfigPath)
+	if err != nil {
+		return fmt.Errorf("erro ao carregar kubeconfig existente: %v", err)
+	}
 
-    kubeconfigPath := filepath.Join(os.Getenv("HOME"), ".kube", fmt.Sprintf("config-%s", username))
-    err := clientcmd.WriteToFile(*config, kubeconfigPath)
-    if err != nil {
-        return fmt.Errorf("erro ao escrever kubeconfig: %v", err)
-    }
+	// Criar um novo contexto para o usuário
+	clusterName := config.CurrentContext
+	authInfo := &api.AuthInfo{
+		ClientCertificateData: clientCertData,
+		ClientKeyData:         clientKeyData,
+	}
+	context := &api.Context{
+		Cluster:  clusterName,
+		AuthInfo: username,
+	}
 
-    fmt.Printf("Kubeconfig criado para o usuário %s em %s\n", username, kubeconfigPath)
-    return nil
+	// Adicionar o novo contexto ao kubeconfig
+	config.AuthInfos[username] = authInfo
+	config.Contexts[username] = context
+	config.CurrentContext = username
+
+	// Salvar o novo kubeconfig
+	newKubeconfigPath := filepath.Join(os.Getenv("HOME"), ".kube", fmt.Sprintf("config-%s", username))
+	err = clientcmd.WriteToFile(*config, newKubeconfigPath)
+	if err != nil {
+		return fmt.Errorf("erro ao escrever kubeconfig: %v", err)
+	}
+
+	fmt.Printf("Kubeconfig criado para o usuário %s em %s\n", username, newKubeconfigPath)
+	return nil
 }
 
 func DeleteKubeconfig(username string) error {
-    kubeconfigPath := filepath.Join(os.Getenv("HOME"), ".kube", fmt.Sprintf("config-%s", username))
-    err := os.Remove(kubeconfigPath)
-    if err != nil {
-        return fmt.Errorf("erro ao remover kubeconfig: %v", err)
-    }
+	kubeconfigPath := filepath.Join(os.Getenv("HOME"), ".kube", fmt.Sprintf("config-%s", username))
+	err := os.Remove(kubeconfigPath)
+	if err != nil {
+		return fmt.Errorf("erro ao remover kubeconfig: %v", err)
+	}
 
-    fmt.Printf("Kubeconfig removido para o usuário %s\n", username)
-    return nil
+	fmt.Printf("Kubeconfig removido para o usuário %s\n", username)
+	return nil
 }

@@ -21,6 +21,5 @@ func Execute() {
 func init() {
 	rootCmd.AddCommand(createKubeconfigCmd)
 	rootCmd.AddCommand(deleteKubeconfigCmd)
-	rootCmd.AddCommand(grantRBACCmd)
-	rootCmd.AddCommand(namespaceQuotasCmd) // Adiciona o novo comando
+	rootCmd.AddCommand(rbacCmd)
 }
