@@ -5,27 +5,57 @@ import (
 	"fmt"
 
 	rbacv1 "k8s.io/api/rbac/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
-func CreateRoleBinding(clientset *kubernetes.Clientset, namespace, username, role string) error {
-	roleBindingName := fmt.Sprintf("%s-%s-binding", username, role)
-
-	// Verificar se o RoleBinding já existe
-	_, err := clientset.RbacV1().RoleBindings(namespace).Get(context.TODO(), roleBindingName, metav1.GetOptions{})
-	if err == nil {
-		// Se existir, remove primeiro
-		err = clientset.RbacV1().RoleBindings(namespace).Delete(context.TODO(), roleBindingName, metav1.DeleteOptions{})
-		if err != nil {
-			return fmt.Errorf("erro ao remover RoleBinding existente: %v", err)
-		}
-	} else if !errors.IsNotFound(err) {
-		return fmt.Errorf("erro ao verificar RoleBinding: %v", err)
+func removeExistingRoleBindings(clientset *kubernetes.Clientset, namespace, username string) error {
+	roleBindings, err := clientset.RbacV1().RoleBindings(namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return fmt.Errorf("erro ao listar RoleBindings: %v", err)
 	}
 
-	// Criar novo RoleBinding
+	for _, rb := range roleBindings.Items {
+		for _, subject := range rb.Subjects {
+			if subject.Kind == "User" && subject.Name == username {
+				err = clientset.RbacV1().RoleBindings(namespace).Delete(context.TODO(), rb.Name, metav1.DeleteOptions{})
+				if err != nil {
+					return fmt.Errorf("erro ao remover RoleBinding existente: %v", err)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func removeExistingClusterRoleBindings(clientset *kubernetes.Clientset, username string) error {
+	clusterRoleBindings, err := clientset.RbacV1().ClusterRoleBindings().List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return fmt.Errorf("erro ao listar ClusterRoleBindings: %v", err)
+	}
+
+	for _, crb := range clusterRoleBindings.Items {
+		for _, subject := range crb.Subjects {
+			if subject.Kind == "User" && subject.Name == username {
+				err = clientset.RbacV1().ClusterRoleBindings().Delete(context.TODO(), crb.Name, metav1.DeleteOptions{})
+				if err != nil {
+					return fmt.Errorf("erro ao remover ClusterRoleBinding existente: %v", err)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func CreateRoleBinding(clientset *kubernetes.Clientset, namespace, username, role string) error {
+	err := removeExistingRoleBindings(clientset, namespace, username)
+	if err != nil {
+		return err
+	}
+
+	roleBindingName := fmt.Sprintf("%s-%s-binding", username, role)
 	roleBinding := &rbacv1.RoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      roleBindingName,
@@ -45,7 +75,6 @@ func CreateRoleBinding(clientset *kubernetes.Clientset, namespace, username, rol
 		},
 	}
 
-	// Criar o RoleBinding
 	_, err = clientset.RbacV1().RoleBindings(namespace).Create(context.TODO(), roleBinding, metav1.CreateOptions{})
 	if err != nil {
 		return fmt.Errorf("erro ao criar RoleBinding: %v", err)
@@ -56,19 +85,12 @@ func CreateRoleBinding(clientset *kubernetes.Clientset, namespace, username, rol
 }
 
 func CreateClusterRoleBinding(clientset *kubernetes.Clientset, username, role string) error {
-	clusterRoleBindingName := fmt.Sprintf("%s-%s-binding", username, role)
-	_, err := clientset.RbacV1().ClusterRoleBindings().Get(context.TODO(), clusterRoleBindingName, metav1.GetOptions{})
-	if err == nil {
-		// Se existir, remove primeiro
-		err = clientset.RbacV1().ClusterRoleBindings().Delete(context.TODO(), clusterRoleBindingName, metav1.DeleteOptions{})
-		if err != nil {
-			return fmt.Errorf("erro ao remover ClusterRoleBinding existente: %v", err)
-		}
-	} else if !errors.IsNotFound(err) {
-		return fmt.Errorf("erro ao verificar ClusterRoleBinding: %v", err)
+	err := removeExistingClusterRoleBindings(clientset, username)
+	if err != nil {
+		return err
 	}
 
-	// Criar novo ClusterRoleBinding
+	clusterRoleBindingName := fmt.Sprintf("%s-%s-binding", username, role)
 	clusterRoleBinding := &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: clusterRoleBindingName,
@@ -87,7 +109,6 @@ func CreateClusterRoleBinding(clientset *kubernetes.Clientset, username, role st
 		},
 	}
 
-	// Criar o ClusterRoleBinding
 	_, err = clientset.RbacV1().ClusterRoleBindings().Create(context.TODO(), clusterRoleBinding, metav1.CreateOptions{})
 	if err != nil {
 		return fmt.Errorf("erro ao criar ClusterRoleBinding: %v", err)
@@ -98,41 +119,19 @@ func CreateClusterRoleBinding(clientset *kubernetes.Clientset, username, role st
 }
 
 func UpdateRoleBinding(clientset *kubernetes.Clientset, namespace, username, role string) error {
-	roleBindingName := fmt.Sprintf("%s-%s-binding", username, role)
-	roleBinding, err := clientset.RbacV1().RoleBindings(namespace).Get(context.TODO(), roleBindingName, metav1.GetOptions{})
-	if errors.IsNotFound(err) {
-		return CreateRoleBinding(clientset, namespace, username, role)
-	}
+	err := removeExistingRoleBindings(clientset, namespace, username)
 	if err != nil {
-		return fmt.Errorf("erro ao obter RoleBinding: %v", err)
+		return err
 	}
 
-	roleBinding.RoleRef.Name = role
-	_, err = clientset.RbacV1().RoleBindings(namespace).Update(context.TODO(), roleBinding, metav1.UpdateOptions{})
-	if err != nil {
-		return fmt.Errorf("erro ao atualizar RoleBinding: %v", err)
-	}
-
-	fmt.Printf("RoleBinding %s atualizado no namespace %s\n", roleBinding.Name, namespace)
-	return nil
+	return CreateRoleBinding(clientset, namespace, username, role)
 }
 
 func UpdateClusterRoleBinding(clientset *kubernetes.Clientset, username, role string) error {
-	clusterRoleBindingName := fmt.Sprintf("%s-%s-binding", username, role)
-	clusterRoleBinding, err := clientset.RbacV1().ClusterRoleBindings().Get(context.TODO(), clusterRoleBindingName, metav1.GetOptions{})
-	if errors.IsNotFound(err) {
-		return CreateClusterRoleBinding(clientset, username, role)
-	}
+	err := removeExistingClusterRoleBindings(clientset, username)
 	if err != nil {
-		return fmt.Errorf("erro ao obter ClusterRoleBinding: %v", err)
+		return err
 	}
 
-	clusterRoleBinding.RoleRef.Name = role
-	_, err = clientset.RbacV1().ClusterRoleBindings().Update(context.TODO(), clusterRoleBinding, metav1.UpdateOptions{})
-	if err != nil {
-		return fmt.Errorf("erro ao atualizar ClusterRoleBinding: %v", err)
-	}
-
-	fmt.Printf("ClusterRoleBinding %s atualizado\n", clusterRoleBinding.Name)
-	return nil
+	return CreateClusterRoleBinding(clientset, username, role)
 }
