@@ -15,6 +15,7 @@ var role string
 var namespace string
 var clientCertData []byte
 var clientKeyData []byte
+var caCertData []byte
 
 var createKubeconfigCmd = &cobra.Command{
 	Use:   "create-kubeconfig [username]",
@@ -28,7 +29,7 @@ var createKubeconfigCmd = &cobra.Command{
 		}
 
 		// Ajuste a chamada para CreateKubeconfig com os dados do certificado e da chave do cliente
-		err = kubeconfig.CreateKubeconfig(username, clientCertData, clientKeyData)
+		err = kubeconfig.CreateKubeconfig(username, clientCertData, clientKeyData, caCertData)
 		if err != nil {
 			log.Fatalf("Erro ao criar kubeconfig: %v", err)
 		}

@@ -9,7 +9,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd/api"
 )
 
-func CreateKubeconfig(username string, clientCertData, clientKeyData []byte) error {
+func CreateKubeconfig(username string, clientCertData, clientKeyData, caCertData []byte) error {
 	// Carregar o kubeconfig existente
 	kubeconfigPath := filepath.Join(os.Getenv("HOME"), ".kube", "config")
 	config, err := clientcmd.LoadFromFile(kubeconfigPath)
@@ -19,6 +19,11 @@ func CreateKubeconfig(username string, clientCertData, clientKeyData []byte) err
 
 	// Criar um novo contexto para o usuário
 	clusterName := config.CurrentContext
+	cluster := config.Clusters[clusterName]
+	if cluster == nil {
+		return fmt.Errorf("cluster %s não encontrado no kubeconfig existente", clusterName)
+	}
+
 	authInfo := &api.AuthInfo{
 		ClientCertificateData: clientCertData,
 		ClientKeyData:         clientKeyData,
