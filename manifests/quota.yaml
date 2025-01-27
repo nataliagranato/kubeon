@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: exceed-quota-deployment
+  namespace: test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: exceed-quota
+  template:
+    metadata:
+      labels:
+        app: exceed-quota
+    spec:
+      containers:
+        - name: exceed-quota-container
+          image: nginx
+          resources:
+            requests:
+              cpu: "5" # Excede a quota de requests.cpu
+              memory: "5Gi" # Excede a quota de requests.memory
+            limits:
+              cpu: "5" # Excede a quota de limits.cpu
+              memory: "5Gi" # Excede a quota de limits.memory
