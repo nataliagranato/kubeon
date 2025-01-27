@@ -9,7 +9,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd/api"
 )
 
-func CreateKubeconfig(username string, clientCertData, clientKeyData, caCertData []byte) error {
+func CreateKubeconfig(username string) error {
 	// Carregar o kubeconfig existente
 	kubeconfigPath := filepath.Join(os.Getenv("HOME"), ".kube", "config")
 	config, err := clientcmd.LoadFromFile(kubeconfigPath)
@@ -17,30 +17,45 @@ func CreateKubeconfig(username string, clientCertData, clientKeyData, caCertData
 		return fmt.Errorf("erro ao carregar kubeconfig existente: %v", err)
 	}
 
-	// Criar um novo contexto para o usuário
-	clusterName := config.CurrentContext
-	cluster := config.Clusters[clusterName]
-	if cluster == nil {
-		return fmt.Errorf("cluster %s não encontrado no kubeconfig existente", clusterName)
+	// Obter o cluster atual
+	currentContext := config.CurrentContext
+	currentCluster := config.Clusters[currentContext]
+	if currentCluster == nil {
+		return fmt.Errorf("cluster atual não encontrado no kubeconfig")
 	}
 
-	authInfo := &api.AuthInfo{
-		ClientCertificateData: clientCertData,
-		ClientKeyData:         clientKeyData,
+	// Criar novo config
+	newConfig := api.NewConfig()
+
+	// Copiar dados do cluster
+	newConfig.Clusters[currentContext] = currentCluster
+
+	// Copiar credenciais do usuário atual
+	currentAuthInfo := config.AuthInfos[config.Contexts[currentContext].AuthInfo]
+	if currentAuthInfo == nil {
+		return fmt.Errorf("credenciais do usuário atual não encontradas")
 	}
-	context := &api.Context{
-		Cluster:  clusterName,
+
+	// Criar novo authInfo com as mesmas credenciais
+	newConfig.AuthInfos[username] = &api.AuthInfo{
+		ClientCertificateData: currentAuthInfo.ClientCertificateData,
+		ClientKeyData:         currentAuthInfo.ClientKeyData,
+		TokenFile:             currentAuthInfo.TokenFile,
+		Token:                 currentAuthInfo.Token,
+	}
+
+	// Criar novo contexto
+	newConfig.Contexts[username] = &api.Context{
+		Cluster:  currentContext,
 		AuthInfo: username,
 	}
 
-	// Adicionar o novo contexto ao kubeconfig
-	config.AuthInfos[username] = authInfo
-	config.Contexts[username] = context
-	config.CurrentContext = username
+	// Definir contexto atual
+	newConfig.CurrentContext = username
 
-	// Salvar o novo kubeconfig
+	// Salvar novo kubeconfig
 	newKubeconfigPath := filepath.Join(os.Getenv("HOME"), ".kube", fmt.Sprintf("config-%s", username))
-	err = clientcmd.WriteToFile(*config, newKubeconfigPath)
+	err = clientcmd.WriteToFile(*newConfig, newKubeconfigPath)
 	if err != nil {
 		return fmt.Errorf("erro ao escrever kubeconfig: %v", err)
 	}
