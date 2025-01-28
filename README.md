@@ -62,11 +62,7 @@ go build -o kubeon
 
 ### Move the Binary to /usr/local/bin
 
-After building the application, move the binary to 
-
-bin
-
- for easy access:
+After building the application, move the binary to bin for easy access:
 
 ```sh
 sudo mv kubeon /usr/local/bin/
