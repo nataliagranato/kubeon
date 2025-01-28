@@ -69,5 +69,4 @@ func init() {
 	namespacesQuotasCmd.Flags().StringVar(&limitsMemory, "limits-memory", "1Gi", "Limite de memória")
 	namespacesQuotasCmd.Flags().StringVar(&requestsCPU, "requests-cpu", "500m", "Requisição de CPU")
 	namespacesQuotasCmd.Flags().StringVar(&requestsMemory, "requests-memory", "512Mi", "Requisição de memória")
-	rootCmd.AddCommand(namespacesQuotasCmd)
 }

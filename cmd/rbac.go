@@ -83,6 +83,4 @@ var updateRbacCmd = &cobra.Command{
 func init() {
 	rbacCmd.Flags().StringVar(&rbacNamespace, "namespace", "", "Namespace para o RoleBinding (obrigatório para roles admin, edit, view)")
 	updateRbacCmd.Flags().StringVar(&rbacNamespace, "namespace", "", "Namespace para o RoleBinding (obrigatório para roles admin, edit, view)")
-	rootCmd.AddCommand(rbacCmd)
-	rootCmd.AddCommand(updateRbacCmd)
 }

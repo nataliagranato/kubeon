@@ -23,4 +23,6 @@ func init() {
 	rootCmd.AddCommand(deleteKubeconfigCmd)
 	rootCmd.AddCommand(rbacCmd)
 	rootCmd.AddCommand(updateRbacCmd)
+	rootCmd.AddCommand(namespacesQuotasCmd)
+	rootCmd.AddCommand(completionCmd)
 }

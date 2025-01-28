@@ -24,5 +24,4 @@ var deleteKubeconfigCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(deleteKubeconfigCmd)
 }

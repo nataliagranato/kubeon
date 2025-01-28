@@ -57,5 +57,4 @@ var createKubeconfigCmd = &cobra.Command{
 func init() {
 	createKubeconfigCmd.Flags().StringVar(&namespace, "namespace", "", "Namespace para o RoleBinding (obrigatório para roles admin, edit, view)")
 	createKubeconfigCmd.Flags().StringVar(&role, "role", "", "Role a ser atribuída ao usuário (admin, edit, view, cluster-admin)")
-	rootCmd.AddCommand(createKubeconfigCmd)
 }
